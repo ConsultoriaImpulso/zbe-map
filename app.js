@@ -27,7 +27,7 @@ const suggestions = document.getElementById("suggestions");
 
 const selectedCityBar = document.getElementById("selectedCityBar");
 const selectedCityName = document.getElementById("selectedCityName");
-const btnClearCity = document.getElementById("btnClearCity");
+const btnSelectedCity = document.getElementById("btnSelectedCity");
 
 const selectedCityChip = document.getElementById("selectedCityChip");
 const obsCity = document.getElementById("obsCity");
@@ -71,7 +71,7 @@ function stripBom(s) {
 }
 
 function splitLines(s) {
-  return stripBom(s).trim().split(/\r?\n/).filter(Boolean);
+  return stripBom(s).split(/\r?\n/);
 }
 
 function detectDelimiter(line) {
@@ -112,7 +112,10 @@ function parseCsvLine(line, delim) {
 }
 
 function parseCsv(text) {
-  const lines = splitLines(text);
+  const rawLines = splitLines(text);
+  if (!rawLines.length) return [];
+
+  const lines = rawLines.filter(line => line !== "");
   if (!lines.length) return [];
 
   const first = lines[0].toLowerCase();
@@ -161,19 +164,24 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;");
 }
 
-function formatObservation(raw) {
-  const text = String(raw || "");
+function preserveFormattedText(raw) {
+  let text = String(raw || "");
   if (!text.trim()) return "";
 
-  // Si ya viene con HTML básico, lo respetamos
-  const looksLikeHtml = /<\/?(b|strong|br|p|ul|ol|li|em|i)\b/i.test(text);
-
-  if (looksLikeHtml) {
+  // Si ya trae HTML básico, lo respetamos
+  if (/<(b|strong|br|p|ul|ol|li|em|i)>/i.test(text) || /<\/(b|strong|br|p|ul|ol|li|em|i)>/i.test(text)) {
     return text;
   }
 
-  // Si no viene HTML, respetamos espacios y saltos con pre-wrap vía CSS
-  return escapeHtml(text);
+  // Convierte negritas tipo **texto**
+  text = escapeHtml(text);
+  text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+
+  // Convierte saltos de línea a <br>
+  text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  text = text.replace(/\n/g, "<br>");
+
+  return text;
 }
 
 // Data
@@ -513,7 +521,9 @@ function updateObservationPanel(cCity) {
   setAccessChip(r?.access || "");
 
   if (obsBodyText) {
-    obsBodyText.innerHTML = formatObservation(r?.obs || (r ? "" : "No hay fila en access.csv para esta combinación (ciudad + distintivo + vehículo)."));
+    obsBodyText.innerHTML = preserveFormattedText(
+      r?.obs || "No hay fila en access.csv para esta combinación (ciudad + distintivo + vehículo)."
+    );
   }
 
   setVigencia(r?.vig || "");
@@ -557,10 +567,8 @@ function selectCity(cCity, { fromMap = false } = {}) {
   if (!fromMap) {
     cityInput.value = "";
     suggestions.style.display = "none";
-  } else {
-    if (suggestions.style.display !== "none") {
-      renderSuggestions(cityInput.value || "");
-    }
+  } else if (suggestions.style.display !== "none") {
+    renderSuggestions(cityInput.value || "");
   }
 
   showSelectedCityBar();
@@ -966,8 +974,7 @@ async function loadAccessCsv() {
     idx.set(key(cCity, cBadge, cVeh), {
       access,
       obs,
-      vig,
-      sourceUrl: ""
+      vig
     });
   }
 }
@@ -1019,6 +1026,353 @@ function onFiltersChangedKeepCity() {
   }
 }
 
+// UI builders
+function svgIcon(name) {
+  const common = `fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"`;
+
+  if (name === "car") {
+    return `<svg class="veh-icon" viewBox="0 0 24 24"><path ${common} d="M3 13l2-6h14l2 6"/><path ${common} d="M5 13h14v6H5z"/><circle ${common} cx="7" cy="19" r="1"/><circle ${common} cx="17" cy="19" r="1"/></svg>`;
+  }
+  if (name === "moto") {
+    return `<svg class="veh-icon" viewBox="0 0 24 24"><circle ${common} cx="6.5" cy="17.5" r="2.5"/><circle ${common} cx="17.5" cy="17.5" r="2.5"/><path ${common} d="M9 17.5l3-7h4l2 3"/><path ${common} d="M12 10.5l-2-2h-2"/></svg>`;
+  }
+  if (name === "van") {
+    return `<svg class="veh-icon" viewBox="0 0 24 24"><path ${common} d="M3 16V8h12l3 4v4H3z"/><circle ${common} cx="7" cy="16" r="1.5"/><circle ${common} cx="17" cy="16" r="1.5"/></svg>`;
+  }
+  if (name === "truck") {
+    return `<svg class="veh-icon" viewBox="0 0 24 24"><path ${common} d="M2 16V7h12v9H2z"/><path ${common} d="M14 10h5l3 3v3h-8z"/><circle ${common} cx="6" cy="16" r="1.5"/><circle ${common} cx="18" cy="16" r="1.5"/></svg>`;
+  }
+  if (name === "bus") {
+    return `<svg class="veh-icon" viewBox="0 0 24 24"><path ${common} d="M5 3h14v14H5z"/><path ${common} d="M7 7h10"/><circle ${common} cx="8" cy="17" r="1.2"/><circle ${common} cx="16" cy="17" r="1.2"/></svg>`;
+  }
+  return "";
+}
+
+function buildVehicleButtons() {
+  const items = [
+    { key: "TURISMO", label: "TURISMO", icon: "car" },
+    { key: "MOTO", label: "MOTO", icon: "moto" },
+    { key: "FURGON", label: "FURGÓN", icon: "van" },
+    { key: "CAMION", label: "CAMIÓN", icon: "truck" },
+    { key: "BUS", label: "BUS", icon: "bus" }
+  ];
+
+  vehGrid.innerHTML = "";
+
+  for (const it of items) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "veh-btn" + (it.key === state.baseVeh ? " active" : "");
+    b.setAttribute("data-veh", it.key);
+    b.innerHTML = `${svgIcon(it.icon)}<div class="veh-label">${it.label}</div>`;
+
+    b.addEventListener("click", () => {
+      state.baseVeh = it.key;
+      const needsWeight = ["FURGON","CAMION","BUS"].includes(state.baseVeh);
+      weightRow.style.display = needsWeight ? "block" : "none";
+      if (!needsWeight) state.weight = "LIGHT";
+      setWeightButtons();
+      updateActiveVeh();
+      onFiltersChangedKeepCity();
+    });
+
+    vehGrid.appendChild(b);
+  }
+
+  updateActiveVeh();
+  weightRow.style.display = ["FURGON","CAMION","BUS"].includes(state.baseVeh) ? "block" : "none";
+}
+
+function updateActiveVeh() {
+  document.querySelectorAll(".veh-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.getAttribute("data-veh") === state.baseVeh);
+  });
+}
+
+function setWeightButtons() {
+  btnLight.classList.toggle("active", state.weight === "LIGHT");
+  btnHeavy.classList.toggle("active", state.weight === "HEAVY");
+}
+
+function buildBadgeButtons() {
+  badgeRow.innerHTML = "";
+
+  for (const opt of BADGE_OPTIONS) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = `badge-btn ${opt.cls}` + (canon(opt.value) === state.cBadge ? " active" : "");
+    b.setAttribute("data-badge", opt.value);
+
+    if (opt.mode === "text") {
+      b.innerHTML = `
+        <div class="badge-inner">
+          <span class="badge-main">${opt.label}</span>
+        </div>
+      `;
+    } else {
+      b.innerHTML = `
+        <div class="badge-inner">
+          <span class="badge-top">${opt.top}</span>
+          <span class="badge-ring"></span>
+          <span class="badge-main">${opt.label}</span>
+        </div>
+      `;
+    }
+
+    b.addEventListener("click", () => {
+      state.cBadge = canon(opt.value);
+      updateActiveBadges();
+      onFiltersChangedKeepCity();
+    });
+
+    badgeRow.appendChild(b);
+  }
+
+  updateActiveBadges();
+}
+
+function updateActiveBadges() {
+  document.querySelectorAll(".badge-btn").forEach(btn => {
+    btn.classList.toggle("active", canon(btn.getAttribute("data-badge")) === state.cBadge);
+  });
+}
+
+// Suggestions
+function cityShortLabel(access) {
+  const lab = normalizeAccessLabel(access);
+  if (lab === "CONDICIONADO") return "COND";
+  if (lab === "PROHIBIDO") return "PROH";
+  if (lab === "LIBRE") return "LIBRE";
+  return "—";
+}
+
+function renderSuggestions(query) {
+  const q = canon(query || "");
+  suggestions.innerHTML = "";
+
+  const allCanon = CITY_22.map(canon);
+  const filtered = allCanon.filter(c => !q || canon(cityDisplayName(c)).includes(q));
+
+  for (const cCity of filtered) {
+    const rec = getRec(cCity);
+    const col = accessToColor(rec?.access || "");
+    const name = cityDisplayName(cCity);
+    const lab = cityShortLabel(rec?.access || "");
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "sugg-item";
+
+    const left = document.createElement("div");
+    left.className = "sugg-left";
+
+    const dot = document.createElement("span");
+    dot.className = "sugg-dot";
+    dot.style.backgroundColor = col;
+    dot.style.borderColor = col;
+
+    const nm = document.createElement("span");
+    nm.className = "sugg-name";
+    nm.textContent = name;
+
+    left.appendChild(dot);
+    left.appendChild(nm);
+
+    const right = document.createElement("span");
+    right.className = "sugg-right";
+    right.textContent = lab;
+
+    btn.appendChild(left);
+    btn.appendChild(right);
+
+    btn.addEventListener("click", () => selectCity(cCity, { fromMap: false }));
+    suggestions.appendChild(btn);
+  }
+
+  suggestions.style.display = filtered.length ? "block" : "none";
+}
+
+function closeSuggestionsSoon() {
+  setTimeout(() => {
+    suggestions.style.display = "none";
+  }, 120);
+}
+
+// Loaders
+async function loadGeojson() {
+  const r = await fetch(GEOJSON_FILE, { cache: "no-store" });
+  if (!r.ok) throw new Error("No pude cargar GeoJSON");
+
+  const gj = await r.json();
+  if (!gj?.features?.length) throw new Error("GeoJSON vacío");
+
+  if (zonesLayer) map.removeLayer(zonesLayer);
+
+  zonesLayer = L.geoJSON(gj, {
+    style: styleForFeature,
+    pointToLayer: (feature, latlng) => {
+      const cCity = featureCityCanon(feature);
+      if (cCity && !cityCoords.has(cCity)) {
+        cityCoords.set(cCity, { lat: latlng.lat, lng: latlng.lng });
+      }
+
+      return L.circleMarker(latlng, {
+        radius: 0,
+        opacity: 0,
+        fillOpacity: 0,
+        interactive: false
+      });
+    },
+    onEachFeature: (feature, layer) => {
+      layer.on("click", () => {
+        const cCity = featureCityCanon(feature);
+        if (!cCity) return;
+
+        if (state.cCity === cCity) {
+          clearSelectionAndZoomOut();
+        } else {
+          selectCity(cCity, { fromMap: true });
+        }
+      });
+    }
+  }).addTo(map);
+
+  rebuildCityBounds();
+}
+
+async function loadCoordsOptional() {
+  for (const path of COORDS_CANDIDATES) {
+    try {
+      const r = await fetch(path, { cache: "no-store" });
+      if (!r.ok) continue;
+
+      const text = await r.text();
+      const rows = parseCsv(text);
+      if (rows.length < 2) return true;
+
+      const header = rows[0];
+      const iCity = findCol(header, ["city","ciudad","municipio"]);
+      const iLat  = findCol(header, ["lat","latitud","latitude","y"]);
+      const iLng  = findCol(header, ["lng","longitud","lon","longitude","x"]);
+      const iCoord = findCol(header, ["coordenadas","coordenada","coord"]);
+
+      if (iCity < 0) return true;
+
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const cityO = norm(row[iCity]);
+        if (!cityO) continue;
+
+        const cCity = canon(cityO);
+        if (cityCoords.has(cCity)) continue;
+
+        let lat = NaN;
+        let lng = NaN;
+
+        if (iLat >= 0 && iLng >= 0) {
+          lat = parseNumMaybe(row[iLat]);
+          lng = parseNumMaybe(row[iLng]);
+        } else if (iCoord >= 0) {
+          const val = String(row[iCoord] || "");
+          const parts = val.split(/[ ,;]+/).filter(Boolean);
+          if (parts.length >= 2) {
+            lat = parseNumMaybe(parts[0]);
+            lng = parseNumMaybe(parts[1]);
+          }
+        }
+
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          cityCoords.set(cCity, { lat, lng });
+        }
+      }
+
+      return true;
+    } catch {
+      // sigue
+    }
+  }
+
+  return false;
+}
+
+async function loadAccessCsv() {
+  const r = await fetch(ACCESS_FILE, { cache: "no-store" });
+  if (!r.ok) throw new Error(`No puedo leer access.csv (HTTP ${r.status})`);
+
+  const text = await r.text();
+  const rows = parseCsv(text);
+  if (rows.length < 2) throw new Error("access.csv está vacío");
+
+  const header = rows[0];
+
+  const iCity = findCol(header, ["city","ciudad","municipio"]);
+  const iBadge = findCol(header, ["badge","distintivo","distintivo ambiental","etiqueta"]);
+  const iVeh = findCol(header, ["vehicle","tipo veh","vehiculo","vehículo"]);
+  const iAccess = findCol(header, ["access","acceso"]);
+  const iObs = findCol(header, ["observaciones","observacion","observación","nota","notas","obs"]);
+  const iVig = findCol(header, ["estado zbe","vigencia","vigente","en vigor","activo","estado_zbe"]);
+  const iLat = findCol(header, ["lat","latitud","latitude","y"]);
+  const iLng = findCol(header, ["lng","longitud","lon","longitude","x"]);
+  const iCoord = findCol(header, ["coordenadas","coordenada","coord"]);
+
+  if (iCity < 0 || iBadge < 0 || iVeh < 0 || iAccess < 0) {
+    throw new Error("No encuentro columnas mínimas en access.csv: CIUDAD, DISTINTIVO, TIPO VEHÍCULO, ACCESO");
+  }
+
+  idx = new Map();
+  cities = new Map();
+  badges = new Map();
+  vehicles = new Map();
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+
+    const cityO = norm(row[iCity]);
+    const badgeO = norm(row[iBadge]);
+    const vehO = norm(row[iVeh]);
+    const access = norm(row[iAccess]);
+    const obs = iObs >= 0 ? (row[iObs] ?? "") : "";
+    const vig = iVig >= 0 ? norm(row[iVig]) : "";
+
+    if (!cityO || !badgeO || !vehO) continue;
+
+    const cCity = canon(cityO);
+    const cBadge = canon(badgeO);
+    const cVeh = canon(vehO);
+
+    cities.set(cCity, cityO);
+    badges.set(cBadge, badgeO);
+    vehicles.set(cVeh, vehO);
+
+    if (!cityCoords.has(cCity)) {
+      let lat = NaN;
+      let lng = NaN;
+
+      if (iLat >= 0 && iLng >= 0) {
+        lat = parseNumMaybe(row[iLat]);
+        lng = parseNumMaybe(row[iLng]);
+      } else if (iCoord >= 0) {
+        const val = String(row[iCoord] || "");
+        const parts = val.split(/[ ,;]+/).filter(Boolean);
+        if (parts.length >= 2) {
+          lat = parseNumMaybe(parts[0]);
+          lng = parseNumMaybe(parts[1]);
+        }
+      }
+
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        cityCoords.set(cCity, { lat, lng });
+      }
+    }
+
+    idx.set(key(cCity, cBadge, cVeh), {
+      access,
+      obs,
+      vig
+    });
+  }
+}
+
 // Events
 btnLight.addEventListener("click", () => {
   state.weight = "LIGHT";
@@ -1040,7 +1394,7 @@ cityInput.addEventListener("keydown", (e) => {
   if (e.key === "Escape") suggestions.style.display = "none";
 });
 
-btnClearCity.addEventListener("click", () => clearSelectionAndZoomOut());
+btnSelectedCity.addEventListener("click", () => clearSelectionAndZoomOut());
 
 btnOptions.addEventListener("click", () => {
   const open = optionsBody.style.display !== "none";
