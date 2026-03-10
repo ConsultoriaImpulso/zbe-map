@@ -154,6 +154,28 @@ function parseNumMaybe(value) {
   return parseFloat(t.replace(",", "."));
 }
 
+function escapeHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function formatObservation(raw) {
+  const text = String(raw || "");
+  if (!text.trim()) return "";
+
+  // Si ya viene con HTML básico, lo respetamos
+  const looksLikeHtml = /<\/?(b|strong|br|p|ul|ol|li|em|i)\b/i.test(text);
+
+  if (looksLikeHtml) {
+    return text;
+  }
+
+  // Si no viene HTML, respetamos espacios y saltos con pre-wrap vía CSS
+  return escapeHtml(text);
+}
+
 // Data
 let idx = new Map();
 let cities = new Map();
@@ -261,8 +283,8 @@ function setVigencia(valueRaw) {
     return;
   }
 
-  const isNo = c.includes("no") || c.includes("false") || c === "0" || c.includes("inact") || c.includes("caduc");
-  const isYes = c.includes("si") || c.includes("sí") || c.includes("true") || c === "1" || c.includes("vigent") || c.includes("activo");
+  const isNo = c.includes("no") || c.includes("false") || c === "0" || c.includes("inact") || c.includes("caduc") || c.includes("no vigente");
+  const isYes = c.includes("si") || c.includes("sí") || c.includes("true") || c === "1" || c.includes("vigent") || c.includes("activo") || c.includes("vigente");
 
   if (isNo && !isYes) {
     vigDot.className = "vig-dot no";
@@ -277,7 +299,7 @@ function setVigencia(valueRaw) {
   }
 
   vigDot.className = "vig-dot unknown";
-  vigText.textContent = "Vigencia ZBE: " + v;
+  vigText.textContent = "Vigencia ZBE: " + v.toUpperCase();
 }
 
 function cityDisplayName(cCanon) {
@@ -491,23 +513,22 @@ function updateObservationPanel(cCity) {
   setAccessChip(r?.access || "");
 
   if (obsBodyText) {
-    obsBodyText.textContent = r?.obs || (r ? "" : "No hay fila en access.csv para esta combinación (ciudad + distintivo + vehículo).");
+    obsBodyText.innerHTML = formatObservation(r?.obs || (r ? "" : "No hay fila en access.csv para esta combinación (ciudad + distintivo + vehículo)."));
   }
 
   setVigencia(r?.vig || "");
 
   if (sourceText) {
-    const src = (r?.sourceUrl || "").trim();
-    sourceText.textContent = src ? src : CSV_URL;
+    sourceText.textContent = "";
   }
 }
 
 function clearObservationPanel() {
   if (obsCity) obsCity.textContent = "—";
   setAccessChip("");
-  if (obsBodyText) obsBodyText.textContent = "Selecciona una ciudad para ver detalles.";
+  if (obsBodyText) obsBodyText.innerHTML = "Selecciona una ciudad para ver detalles.";
   setVigencia("");
-  if (sourceText) sourceText.textContent = "—";
+  if (sourceText) sourceText.textContent = "";
   if (selectedCityBar) selectedCityBar.style.display = "none";
 }
 
@@ -786,7 +807,6 @@ async function loadGeojson() {
   zonesLayer = L.geoJSON(gj, {
     style: styleForFeature,
 
-    // evita el pin azul y reutiliza coords de puntos del propio geojson
     pointToLayer: (feature, latlng) => {
       const cCity = featureCityCanon(feature);
       if (cCity && !cityCoords.has(cCity)) {
@@ -888,11 +908,10 @@ async function loadAccessCsv() {
   const iVeh = findCol(header, ["vehicle","tipo veh","vehiculo","vehículo"]);
   const iAccess = findCol(header, ["access","acceso"]);
   const iObs = findCol(header, ["observaciones","observacion","observación","nota","notas","obs"]);
-  const iVig = findCol(header, ["vigencia","vigente","en vigor","activo","estado zbe","estado_zbe"]);
+  const iVig = findCol(header, ["estado zbe","vigencia","vigente","en vigor","activo","estado_zbe"]);
   const iLat = findCol(header, ["lat","latitud","latitude","y"]);
   const iLng = findCol(header, ["lng","longitud","lon","longitude","x"]);
   const iCoord = findCol(header, ["coordenadas","coordenada","coord"]);
-  const iSource = findCol(header, ["url","fuente","source","enlace","link"]);
 
   if (iCity < 0 || iBadge < 0 || iVeh < 0 || iAccess < 0) {
     throw new Error("No encuentro columnas mínimas en access.csv: CIUDAD, DISTINTIVO, TIPO VEHÍCULO, ACCESO");
@@ -910,9 +929,8 @@ async function loadAccessCsv() {
     const badgeO = norm(row[iBadge]);
     const vehO = norm(row[iVeh]);
     const access = norm(row[iAccess]);
-    const obs = iObs >= 0 ? norm(row[iObs]) : "";
+    const obs = iObs >= 0 ? row[iObs] ?? "" : "";
     const vig = iVig >= 0 ? norm(row[iVig]) : "";
-    const src = iSource >= 0 ? norm(row[iSource]) : "";
 
     if (!cityO || !badgeO || !vehO) continue;
 
@@ -949,7 +967,7 @@ async function loadAccessCsv() {
       access,
       obs,
       vig,
-      sourceUrl: src
+      sourceUrl: ""
     });
   }
 }
