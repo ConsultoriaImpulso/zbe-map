@@ -6,7 +6,6 @@
   <title>ZBE · Dashboard</title>
   <link rel="stylesheet" href="./styles.css" />
 
-  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
@@ -14,7 +13,7 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <div class="logo"></div>
+      <img src="./logo_impulso.png" alt="Impulso by PONS" class="brand-logo-img" />
       <div class="brand-text">
         <div class="brand-title">ZBE</div>
         <div class="brand-sub">IMPULSO · MOBILITY INTELLIGENCE</div>
@@ -32,7 +31,7 @@
 
   <main class="layout">
     <aside class="left">
-      <section class="card">
+      <section class="card filters-card">
         <div class="card-title">TIPO VEHÍCULO</div>
         <div class="veh-grid" id="vehGrid"></div>
 
@@ -53,13 +52,13 @@
           <div id="suggestions" class="suggestions" style="display:none;"></div>
         </div>
 
-        <!-- Barra fija para saber qué ciudad está seleccionada y para alejar -->
+        <!-- ahora toda la barra es clickable -->
         <div class="selected-city" id="selectedCityBar" style="display:none;">
-          <div class="selected-pill">
+          <button class="selected-pill selected-pill-btn" id="btnSelectedCity" type="button">
             <span class="sel-label">Seleccionada:</span>
             <span class="sel-name" id="selectedCityName">—</span>
-            <button class="sel-clear" id="btnClearCity" type="button">Alejar ✕</button>
-          </div>
+            <span class="sel-action">Alejar</span>
+          </button>
         </div>
 
         <div class="status-line">
@@ -84,7 +83,7 @@
             </div>
 
             <div class="src-line">
-              Fuente: <span id="sourceText">—</span>
+              <span id="sourceText"></span>
             </div>
           </div>
         </div>
@@ -98,7 +97,7 @@
 
         <div class="options-body" id="optionsBody" style="display:none;">
           <button class="btn" id="btnReload" type="button">Recargar CSV</button>
-          <button class="btn btn-ghost" id="btnReset" type="button">Reset (oculto)</button>
+          <button class="btn btn-ghost" id="btnReset" type="button">Reset</button>
           <div class="hint" id="csvHint"></div>
         </div>
       </section>
