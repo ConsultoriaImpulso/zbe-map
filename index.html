@@ -39,7 +39,7 @@
           <div class="sub-title">PESO</div>
           <div class="segmented">
             <button class="seg active" id="btnLight" type="button">LIGERO</button>
-            <button class="seg" id="btnHeavy" type="button">PESADO (&gt; 3.500)</button>
+            <button class="seg" id="btnHeavy" type="button">PESADO (&gt; 3,5 ton.)</button>
           </div>
         </div>
 
@@ -52,12 +52,10 @@
           <div id="suggestions" class="suggestions" style="display:none;"></div>
         </div>
 
-        <!-- ahora toda la barra es clickable -->
         <div class="selected-city" id="selectedCityBar" style="display:none;">
           <button class="selected-pill selected-pill-btn" id="btnSelectedCity" type="button">
             <span class="sel-label">Seleccionada:</span>
             <span class="sel-name" id="selectedCityName">—</span>
-            <span class="sel-action">Alejar</span>
           </button>
         </div>
 
@@ -86,19 +84,6 @@
               <span id="sourceText"></span>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section class="card options">
-        <div class="options-row">
-          <button class="opt-toggle" id="btnOptions" type="button">Opciones</button>
-          <div class="hint" id="lastUpdated">Última carga: —</div>
-        </div>
-
-        <div class="options-body" id="optionsBody" style="display:none;">
-          <button class="btn" id="btnReload" type="button">Recargar CSV</button>
-          <button class="btn btn-ghost" id="btnReset" type="button">Reset</button>
-          <div class="hint" id="csvHint"></div>
         </div>
       </section>
 
