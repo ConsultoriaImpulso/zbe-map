@@ -34,14 +34,6 @@ const obsCity = document.getElementById("obsCity");
 const obsBodyText = document.getElementById("obsBodyText");
 const vigDot = document.getElementById("vigDot");
 const vigText = document.getElementById("vigText");
-const sourceText = document.getElementById("sourceText");
-
-const btnOptions = document.getElementById("btnOptions");
-const optionsBody = document.getElementById("optionsBody");
-const btnReload = document.getElementById("btnReload");
-const btnReset = document.getElementById("btnReset");
-const lastUpdated = document.getElementById("lastUpdated");
-const csvHint = document.getElementById("csvHint");
 
 function showToast(msg, ms = 9000) {
   if (!toast) return;
@@ -52,9 +44,6 @@ function showToast(msg, ms = 9000) {
     toast.style.display = "none";
   }, ms);
 }
-
-const CSV_URL = new URL("access.csv", window.location.href).href;
-if (csvHint) csvHint.textContent = `CSV: ${CSV_URL}`;
 
 // Utils
 function canon(s) {
@@ -168,20 +157,24 @@ function preserveFormattedText(raw) {
   let text = String(raw || "");
   if (!text.trim()) return "";
 
-  // Si ya trae HTML básico, lo respetamos
-  if (/<(b|strong|br|p|ul|ol|li|em|i)>/i.test(text) || /<\/(b|strong|br|p|ul|ol|li|em|i)>/i.test(text)) {
-    return text;
-  }
+  const looksLikeHtml = /<\/?(strong|b|br|p|ul|ol|li|em|i)\b/i.test(text);
+  if (looksLikeHtml) return text;
 
-  // Convierte negritas tipo **texto**
   text = escapeHtml(text);
+
+  // negritas tipo **texto**
   text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 
-  // Convierte saltos de línea a <br>
-  text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  text = text.replace(/\n/g, "<br>");
+  // dobles saltos -> párrafos
+  const paragraphs = text
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split(/\n{2,}/)
+    .map(block => block.trim())
+    .filter(Boolean)
+    .map(block => `<p>${block.replace(/\n/g, "<br>")}</p>`);
 
-  return text;
+  return paragraphs.length ? paragraphs.join("") : text.replace(/\n/g, "<br>");
 }
 
 // Data
@@ -207,9 +200,9 @@ const state = {
 const VEH_MAP = {
   TURISMO: { LIGHT: "turismo", HEAVY: "turismo" },
   MOTO:    { LIGHT: "motocicleta", HEAVY: "motocicleta" },
-  FURGON:  { LIGHT: "furgoneta", HEAVY: "furgoneta >3500 kg" },
+  FURGONETA: { LIGHT: "furgoneta", HEAVY: "furgoneta >3500 kg" },
   CAMION:  { LIGHT: "camión (servicios)", HEAVY: "camión >3500 kg (servicios)" },
-  BUS:     { LIGHT: "autobús (servicios)", HEAVY: "autobús >3500 kg (servicios)" }
+  AUTOBUS: { LIGHT: "autobús (servicios)", HEAVY: "autobús >3500 kg (servicios)" }
 };
 
 const BADGE_OPTIONS = [
@@ -234,7 +227,7 @@ osm.addTo(map);
 
 pinsLayer.addTo(map);
 
-// Access helpers
+// Helpers
 function key(cCity, cBadge, cVeh) {
   return `${cCity}||${cBadge}||${cVeh}`;
 }
@@ -274,9 +267,26 @@ function setAccessChip(access) {
   selectedCityChip.textContent = normalizeAccessLabel(access);
 }
 
-function setLastUpdatedNow() {
-  if (!lastUpdated) return;
-  lastUpdated.textContent = "Última carga: " + new Date().toLocaleString("es-ES");
+function cityDisplayName(cCanon) {
+  return cities.get(cCanon) || CITY_22.find(x => canon(x) === cCanon) || cCanon;
+}
+
+function syncObsHeader() {
+  if (!obsCity) return;
+  const city = cities.get(state.cCity) || (state.cCity ? state.cCity : "");
+  obsCity.textContent = city ? city.toUpperCase() : "—";
+}
+
+function showSelectedCityBar() {
+  if (!selectedCityBar || !selectedCityName) return;
+
+  if (!state.cCity) {
+    selectedCityBar.style.display = "none";
+    return;
+  }
+
+  selectedCityName.textContent = cityDisplayName(state.cCity);
+  selectedCityBar.style.display = "block";
 }
 
 function setVigencia(valueRaw) {
@@ -310,34 +320,10 @@ function setVigencia(valueRaw) {
   vigText.textContent = "Vigencia ZBE: " + v.toUpperCase();
 }
 
-function cityDisplayName(cCanon) {
-  return cities.get(cCanon) || CITY_22.find(x => canon(x) === cCanon) || cCanon;
-}
-
-function syncObsHeader() {
-  if (!obsCity) return;
-  const city = cities.get(state.cCity) || (state.cCity ? state.cCity : "");
-  obsCity.textContent = city ? city.toUpperCase() : "—";
-}
-
-function showSelectedCityBar() {
-  if (!selectedCityBar || !selectedCityName) return;
-
-  if (!state.cCity) {
-    selectedCityBar.style.display = "none";
-    return;
-  }
-
-  selectedCityName.textContent = cityDisplayName(state.cCity);
-  selectedCityBar.style.display = "block";
-}
-
-// GeoJSON helpers
+// Geo helpers
 function featureCityCanon(feature) {
   const p = feature?.properties || {};
-  const candidates = [
-    p.city, p.CIUDAD, p.Ciudad, p.municipio, p.MUNICIPIO, p.nombre, p.NAME, p.name
-  ].filter(Boolean);
+  const candidates = [p.city, p.CIUDAD, p.Ciudad, p.municipio, p.MUNICIPIO, p.nombre, p.NAME, p.name].filter(Boolean);
 
   if (candidates.length) return canon(candidates[0]);
 
@@ -387,7 +373,6 @@ function rebuildCityBounds() {
 
     const cCity = featureCityCanon(f);
     if (!cCity) return;
-
     if (typeof layer.getBounds !== "function") return;
 
     const b = layer.getBounds();
@@ -496,11 +481,8 @@ function buildPins() {
     });
 
     marker.on("click", () => {
-      if (state.cCity === cCity) {
-        clearSelectionAndZoomOut();
-      } else {
-        selectCity(cCity, { fromMap: true });
-      }
+      if (state.cCity === cCity) clearSelectionAndZoomOut();
+      else selectCity(cCity, { fromMap: true });
     });
 
     marker.addTo(pinsLayer);
@@ -527,10 +509,6 @@ function updateObservationPanel(cCity) {
   }
 
   setVigencia(r?.vig || "");
-
-  if (sourceText) {
-    sourceText.textContent = "";
-  }
 }
 
 function clearObservationPanel() {
@@ -538,7 +516,6 @@ function clearObservationPanel() {
   setAccessChip("");
   if (obsBodyText) obsBodyText.innerHTML = "Selecciona una ciudad para ver detalles.";
   setVigencia("");
-  if (sourceText) sourceText.textContent = "";
   if (selectedCityBar) selectedCityBar.style.display = "none";
 }
 
@@ -656,9 +633,9 @@ function buildVehicleButtons() {
   const items = [
     { key: "TURISMO", label: "TURISMO", icon: "car" },
     { key: "MOTO", label: "MOTO", icon: "moto" },
-    { key: "FURGON", label: "FURGÓN", icon: "van" },
+    { key: "FURGONETA", label: "FURGONETA", icon: "van" },
     { key: "CAMION", label: "CAMIÓN", icon: "truck" },
-    { key: "BUS", label: "BUS", icon: "bus" }
+    { key: "AUTOBUS", label: "AUTOBÚS", icon: "bus" }
   ];
 
   vehGrid.innerHTML = "";
@@ -672,7 +649,7 @@ function buildVehicleButtons() {
 
     b.addEventListener("click", () => {
       state.baseVeh = it.key;
-      const needsWeight = ["FURGON","CAMION","BUS"].includes(state.baseVeh);
+      const needsWeight = ["FURGONETA","CAMION","AUTOBUS"].includes(state.baseVeh);
       weightRow.style.display = needsWeight ? "block" : "none";
       if (!needsWeight) state.weight = "LIGHT";
       setWeightButtons();
@@ -684,7 +661,7 @@ function buildVehicleButtons() {
   }
 
   updateActiveVeh();
-  weightRow.style.display = ["FURGON","CAMION","BUS"].includes(state.baseVeh) ? "block" : "none";
+  weightRow.style.display = ["FURGONETA","CAMION","AUTOBUS"].includes(state.baseVeh) ? "block" : "none";
 }
 
 function updateActiveVeh() {
@@ -742,14 +719,6 @@ function updateActiveBadges() {
 }
 
 // Suggestions
-function cityShortLabel(access) {
-  const lab = normalizeAccessLabel(access);
-  if (lab === "CONDICIONADO") return "COND";
-  if (lab === "PROHIBIDO") return "PROH";
-  if (lab === "LIBRE") return "LIBRE";
-  return "—";
-}
-
 function renderSuggestions(query) {
   const q = canon(query || "");
   suggestions.innerHTML = "";
@@ -761,7 +730,6 @@ function renderSuggestions(query) {
     const rec = getRec(cCity);
     const col = accessToColor(rec?.access || "");
     const name = cityDisplayName(cCity);
-    const lab = cityShortLabel(rec?.access || "");
 
     const btn = document.createElement("button");
     btn.type = "button";
@@ -781,409 +749,7 @@ function renderSuggestions(query) {
 
     left.appendChild(dot);
     left.appendChild(nm);
-
-    const right = document.createElement("span");
-    right.className = "sugg-right";
-    right.textContent = lab;
-
     btn.appendChild(left);
-    btn.appendChild(right);
-
-    btn.addEventListener("click", () => selectCity(cCity, { fromMap: false }));
-    suggestions.appendChild(btn);
-  }
-
-  suggestions.style.display = filtered.length ? "block" : "none";
-}
-
-function closeSuggestionsSoon() {
-  setTimeout(() => {
-    suggestions.style.display = "none";
-  }, 120);
-}
-
-// Loaders
-async function loadGeojson() {
-  const r = await fetch(GEOJSON_FILE, { cache: "no-store" });
-  if (!r.ok) throw new Error("No pude cargar GeoJSON");
-
-  const gj = await r.json();
-  if (!gj?.features?.length) throw new Error("GeoJSON vacío");
-
-  if (zonesLayer) map.removeLayer(zonesLayer);
-
-  zonesLayer = L.geoJSON(gj, {
-    style: styleForFeature,
-
-    pointToLayer: (feature, latlng) => {
-      const cCity = featureCityCanon(feature);
-      if (cCity && !cityCoords.has(cCity)) {
-        cityCoords.set(cCity, { lat: latlng.lat, lng: latlng.lng });
-      }
-
-      return L.circleMarker(latlng, {
-        radius: 0,
-        opacity: 0,
-        fillOpacity: 0,
-        interactive: false
-      });
-    },
-
-    onEachFeature: (feature, layer) => {
-      layer.on("click", () => {
-        const cCity = featureCityCanon(feature);
-        if (!cCity) return;
-
-        if (state.cCity === cCity) {
-          clearSelectionAndZoomOut();
-        } else {
-          selectCity(cCity, { fromMap: true });
-        }
-      });
-    }
-  }).addTo(map);
-
-  rebuildCityBounds();
-}
-
-async function loadCoordsOptional() {
-  for (const path of COORDS_CANDIDATES) {
-    try {
-      const r = await fetch(path, { cache: "no-store" });
-      if (!r.ok) continue;
-
-      const text = await r.text();
-      const rows = parseCsv(text);
-      if (rows.length < 2) return true;
-
-      const header = rows[0];
-      const iCity = findCol(header, ["city","ciudad","municipio"]);
-      const iLat  = findCol(header, ["lat","latitud","latitude","y"]);
-      const iLng  = findCol(header, ["lng","longitud","lon","longitude","x"]);
-      const iCoord = findCol(header, ["coordenadas","coordenada","coord"]);
-
-      if (iCity < 0) return true;
-
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        const cityO = norm(row[iCity]);
-        if (!cityO) continue;
-
-        const cCity = canon(cityO);
-        if (cityCoords.has(cCity)) continue;
-
-        let lat = NaN;
-        let lng = NaN;
-
-        if (iLat >= 0 && iLng >= 0) {
-          lat = parseNumMaybe(row[iLat]);
-          lng = parseNumMaybe(row[iLng]);
-        } else if (iCoord >= 0) {
-          const val = String(row[iCoord] || "");
-          const parts = val.split(/[ ,;]+/).filter(Boolean);
-          if (parts.length >= 2) {
-            lat = parseNumMaybe(parts[0]);
-            lng = parseNumMaybe(parts[1]);
-          }
-        }
-
-        if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          cityCoords.set(cCity, { lat, lng });
-        }
-      }
-
-      return true;
-    } catch {
-      // sigue
-    }
-  }
-
-  return false;
-}
-
-async function loadAccessCsv() {
-  const r = await fetch(ACCESS_FILE, { cache: "no-store" });
-  if (!r.ok) throw new Error(`No puedo leer access.csv (HTTP ${r.status})`);
-
-  const text = await r.text();
-  const rows = parseCsv(text);
-  if (rows.length < 2) throw new Error("access.csv está vacío");
-
-  const header = rows[0];
-
-  const iCity = findCol(header, ["city","ciudad","municipio"]);
-  const iBadge = findCol(header, ["badge","distintivo","distintivo ambiental","etiqueta"]);
-  const iVeh = findCol(header, ["vehicle","tipo veh","vehiculo","vehículo"]);
-  const iAccess = findCol(header, ["access","acceso"]);
-  const iObs = findCol(header, ["observaciones","observacion","observación","nota","notas","obs"]);
-  const iVig = findCol(header, ["estado zbe","vigencia","vigente","en vigor","activo","estado_zbe"]);
-  const iLat = findCol(header, ["lat","latitud","latitude","y"]);
-  const iLng = findCol(header, ["lng","longitud","lon","longitude","x"]);
-  const iCoord = findCol(header, ["coordenadas","coordenada","coord"]);
-
-  if (iCity < 0 || iBadge < 0 || iVeh < 0 || iAccess < 0) {
-    throw new Error("No encuentro columnas mínimas en access.csv: CIUDAD, DISTINTIVO, TIPO VEHÍCULO, ACCESO");
-  }
-
-  idx = new Map();
-  cities = new Map();
-  badges = new Map();
-  vehicles = new Map();
-
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-
-    const cityO = norm(row[iCity]);
-    const badgeO = norm(row[iBadge]);
-    const vehO = norm(row[iVeh]);
-    const access = norm(row[iAccess]);
-    const obs = iObs >= 0 ? row[iObs] ?? "" : "";
-    const vig = iVig >= 0 ? norm(row[iVig]) : "";
-
-    if (!cityO || !badgeO || !vehO) continue;
-
-    const cCity = canon(cityO);
-    const cBadge = canon(badgeO);
-    const cVeh = canon(vehO);
-
-    cities.set(cCity, cityO);
-    badges.set(cBadge, badgeO);
-    vehicles.set(cVeh, vehO);
-
-    if (!cityCoords.has(cCity)) {
-      let lat = NaN;
-      let lng = NaN;
-
-      if (iLat >= 0 && iLng >= 0) {
-        lat = parseNumMaybe(row[iLat]);
-        lng = parseNumMaybe(row[iLng]);
-      } else if (iCoord >= 0) {
-        const val = String(row[iCoord] || "");
-        const parts = val.split(/[ ,;]+/).filter(Boolean);
-        if (parts.length >= 2) {
-          lat = parseNumMaybe(parts[0]);
-          lng = parseNumMaybe(parts[1]);
-        }
-      }
-
-      if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        cityCoords.set(cCity, { lat, lng });
-      }
-    }
-
-    idx.set(key(cCity, cBadge, cVeh), {
-      access,
-      obs,
-      vig
-    });
-  }
-}
-
-// Filters
-function applyVehicleFromUI() {
-  const mapped = VEH_MAP[state.baseVeh]?.[state.weight] || "turismo";
-  state.cVeh = canon(mapped);
-
-  if (vehicles.has(state.cVeh)) return;
-
-  const want = state.cVeh;
-  for (const [k] of vehicles.entries()) {
-    if (k.includes(want) || want.includes(k)) {
-      state.cVeh = k;
-      return;
-    }
-  }
-}
-
-function normalizeBadgeToExisting() {
-  if (badges.has(state.cBadge)) return;
-
-  const want = state.cBadge;
-  for (const [k] of badges.entries()) {
-    if (k.includes(want) || want.includes(k)) {
-      state.cBadge = k;
-      return;
-    }
-  }
-
-  const sin = Array.from(badges.entries()).find(([, o]) => String(o).toUpperCase() === "SIN ETIQUETA");
-  state.cBadge = sin ? sin[0] : (Array.from(badges.keys())[0] || state.cBadge);
-  updateActiveBadges();
-}
-
-function onFiltersChangedKeepCity() {
-  applyVehicleFromUI();
-  normalizeBadgeToExisting();
-  refreshZonesStyle();
-  refreshPins();
-
-  if (suggestions.style.display !== "none") {
-    renderSuggestions(cityInput.value || "");
-  }
-
-  if (state.cCity) {
-    updateObservationPanel(state.cCity);
-  }
-}
-
-// UI builders
-function svgIcon(name) {
-  const common = `fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"`;
-
-  if (name === "car") {
-    return `<svg class="veh-icon" viewBox="0 0 24 24"><path ${common} d="M3 13l2-6h14l2 6"/><path ${common} d="M5 13h14v6H5z"/><circle ${common} cx="7" cy="19" r="1"/><circle ${common} cx="17" cy="19" r="1"/></svg>`;
-  }
-  if (name === "moto") {
-    return `<svg class="veh-icon" viewBox="0 0 24 24"><circle ${common} cx="6.5" cy="17.5" r="2.5"/><circle ${common} cx="17.5" cy="17.5" r="2.5"/><path ${common} d="M9 17.5l3-7h4l2 3"/><path ${common} d="M12 10.5l-2-2h-2"/></svg>`;
-  }
-  if (name === "van") {
-    return `<svg class="veh-icon" viewBox="0 0 24 24"><path ${common} d="M3 16V8h12l3 4v4H3z"/><circle ${common} cx="7" cy="16" r="1.5"/><circle ${common} cx="17" cy="16" r="1.5"/></svg>`;
-  }
-  if (name === "truck") {
-    return `<svg class="veh-icon" viewBox="0 0 24 24"><path ${common} d="M2 16V7h12v9H2z"/><path ${common} d="M14 10h5l3 3v3h-8z"/><circle ${common} cx="6" cy="16" r="1.5"/><circle ${common} cx="18" cy="16" r="1.5"/></svg>`;
-  }
-  if (name === "bus") {
-    return `<svg class="veh-icon" viewBox="0 0 24 24"><path ${common} d="M5 3h14v14H5z"/><path ${common} d="M7 7h10"/><circle ${common} cx="8" cy="17" r="1.2"/><circle ${common} cx="16" cy="17" r="1.2"/></svg>`;
-  }
-  return "";
-}
-
-function buildVehicleButtons() {
-  const items = [
-    { key: "TURISMO", label: "TURISMO", icon: "car" },
-    { key: "MOTO", label: "MOTO", icon: "moto" },
-    { key: "FURGON", label: "FURGÓN", icon: "van" },
-    { key: "CAMION", label: "CAMIÓN", icon: "truck" },
-    { key: "BUS", label: "BUS", icon: "bus" }
-  ];
-
-  vehGrid.innerHTML = "";
-
-  for (const it of items) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "veh-btn" + (it.key === state.baseVeh ? " active" : "");
-    b.setAttribute("data-veh", it.key);
-    b.innerHTML = `${svgIcon(it.icon)}<div class="veh-label">${it.label}</div>`;
-
-    b.addEventListener("click", () => {
-      state.baseVeh = it.key;
-      const needsWeight = ["FURGON","CAMION","BUS"].includes(state.baseVeh);
-      weightRow.style.display = needsWeight ? "block" : "none";
-      if (!needsWeight) state.weight = "LIGHT";
-      setWeightButtons();
-      updateActiveVeh();
-      onFiltersChangedKeepCity();
-    });
-
-    vehGrid.appendChild(b);
-  }
-
-  updateActiveVeh();
-  weightRow.style.display = ["FURGON","CAMION","BUS"].includes(state.baseVeh) ? "block" : "none";
-}
-
-function updateActiveVeh() {
-  document.querySelectorAll(".veh-btn").forEach(btn => {
-    btn.classList.toggle("active", btn.getAttribute("data-veh") === state.baseVeh);
-  });
-}
-
-function setWeightButtons() {
-  btnLight.classList.toggle("active", state.weight === "LIGHT");
-  btnHeavy.classList.toggle("active", state.weight === "HEAVY");
-}
-
-function buildBadgeButtons() {
-  badgeRow.innerHTML = "";
-
-  for (const opt of BADGE_OPTIONS) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = `badge-btn ${opt.cls}` + (canon(opt.value) === state.cBadge ? " active" : "");
-    b.setAttribute("data-badge", opt.value);
-
-    if (opt.mode === "text") {
-      b.innerHTML = `
-        <div class="badge-inner">
-          <span class="badge-main">${opt.label}</span>
-        </div>
-      `;
-    } else {
-      b.innerHTML = `
-        <div class="badge-inner">
-          <span class="badge-top">${opt.top}</span>
-          <span class="badge-ring"></span>
-          <span class="badge-main">${opt.label}</span>
-        </div>
-      `;
-    }
-
-    b.addEventListener("click", () => {
-      state.cBadge = canon(opt.value);
-      updateActiveBadges();
-      onFiltersChangedKeepCity();
-    });
-
-    badgeRow.appendChild(b);
-  }
-
-  updateActiveBadges();
-}
-
-function updateActiveBadges() {
-  document.querySelectorAll(".badge-btn").forEach(btn => {
-    btn.classList.toggle("active", canon(btn.getAttribute("data-badge")) === state.cBadge);
-  });
-}
-
-// Suggestions
-function cityShortLabel(access) {
-  const lab = normalizeAccessLabel(access);
-  if (lab === "CONDICIONADO") return "COND";
-  if (lab === "PROHIBIDO") return "PROH";
-  if (lab === "LIBRE") return "LIBRE";
-  return "—";
-}
-
-function renderSuggestions(query) {
-  const q = canon(query || "");
-  suggestions.innerHTML = "";
-
-  const allCanon = CITY_22.map(canon);
-  const filtered = allCanon.filter(c => !q || canon(cityDisplayName(c)).includes(q));
-
-  for (const cCity of filtered) {
-    const rec = getRec(cCity);
-    const col = accessToColor(rec?.access || "");
-    const name = cityDisplayName(cCity);
-    const lab = cityShortLabel(rec?.access || "");
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "sugg-item";
-
-    const left = document.createElement("div");
-    left.className = "sugg-left";
-
-    const dot = document.createElement("span");
-    dot.className = "sugg-dot";
-    dot.style.backgroundColor = col;
-    dot.style.borderColor = col;
-
-    const nm = document.createElement("span");
-    nm.className = "sugg-name";
-    nm.textContent = name;
-
-    left.appendChild(dot);
-    left.appendChild(nm);
-
-    const right = document.createElement("span");
-    right.className = "sugg-right";
-    right.textContent = lab;
-
-    btn.appendChild(left);
-    btn.appendChild(right);
 
     btn.addEventListener("click", () => selectCity(cCity, { fromMap: false }));
     suggestions.appendChild(btn);
@@ -1228,11 +794,8 @@ async function loadGeojson() {
         const cCity = featureCityCanon(feature);
         if (!cCity) return;
 
-        if (state.cCity === cCity) {
-          clearSelectionAndZoomOut();
-        } else {
-          selectCity(cCity, { fromMap: true });
-        }
+        if (state.cCity === cCity) clearSelectionAndZoomOut();
+        else selectCity(cCity, { fromMap: true });
       });
     }
   }).addTo(map);
@@ -1252,8 +815,8 @@ async function loadCoordsOptional() {
 
       const header = rows[0];
       const iCity = findCol(header, ["city","ciudad","municipio"]);
-      const iLat  = findCol(header, ["lat","latitud","latitude","y"]);
-      const iLng  = findCol(header, ["lng","longitud","lon","longitude","x"]);
+      const iLat = findCol(header, ["lat","latitud","latitude","y"]);
+      const iLng = findCol(header, ["lng","longitud","lon","longitude","x"]);
       const iCoord = findCol(header, ["coordenadas","coordenada","coord"]);
 
       if (iCity < 0) return true;
@@ -1287,9 +850,7 @@ async function loadCoordsOptional() {
       }
 
       return true;
-    } catch {
-      // sigue
-    }
+    } catch {}
   }
 
   return false;
@@ -1396,53 +957,8 @@ cityInput.addEventListener("keydown", (e) => {
 
 btnSelectedCity.addEventListener("click", () => clearSelectionAndZoomOut());
 
-btnOptions.addEventListener("click", () => {
-  const open = optionsBody.style.display !== "none";
-  optionsBody.style.display = open ? "none" : "block";
-});
-
-btnReload.addEventListener("click", async () => {
-  try {
-    showToast("Recargando access.csv…", 2000);
-    await loadAccessCsv();
-    applyVehicleFromUI();
-    normalizeBadgeToExisting();
-    refreshZonesStyle();
-    buildPins();
-    refreshPins();
-
-    if (state.cCity) {
-      updateObservationPanel(state.cCity);
-    }
-
-    setLastUpdatedNow();
-
-    if (suggestions.style.display !== "none") {
-      renderSuggestions(cityInput.value || "");
-    }
-
-    showToast("✅ CSV recargado", 1500);
-  } catch (e) {
-    console.error(e);
-    showToast("❌ No pude recargar CSV: " + (e?.message || String(e)), 15000);
-  }
-});
-
-btnReset.addEventListener("click", () => {
-  state.baseVeh = "TURISMO";
-  state.weight = "LIGHT";
-  state.cBadge = canon("SIN ETIQUETA");
-  buildVehicleButtons();
-  buildBadgeButtons();
-  setWeightButtons();
-  onFiltersChangedKeepCity();
-  flyToDefaultSlow();
-});
-
 // Init
 async function init() {
-  showToast("Cargando…", 1200);
-
   await loadAccessCsv();
   await loadGeojson();
   await loadCoordsOptional();
@@ -1460,9 +976,6 @@ async function init() {
   refreshZonesStyle();
   buildPins();
   refreshPins();
-
-  setLastUpdatedNow();
-  showToast("✅ Listo", 1200);
 }
 
 init().catch((e) => {
