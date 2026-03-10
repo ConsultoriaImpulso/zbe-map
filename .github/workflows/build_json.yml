@@ -1,0 +1,35 @@
+name: build-json
+
+on:
+  push:
+    paths:
+      - "ZBE.xlsx"
+      - "mapa_zbe.csv"
+      - "scripts/build_json.py"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: install python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: install libs
+        run: pip install pandas openpyxl
+
+      - name: run script
+        run: python scripts/build_json.py
+
+      - name: commit json
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add access.json
+          git commit -m "update json" || echo "no changes"
+          git push
