@@ -125,13 +125,6 @@ body{
   margin-bottom:10px;
 }
 
-.hint{
-  margin-top:6px;
-  font-size:12px;
-  color:var(--muted);
-  line-height:1.35;
-}
-
 /* Vehículos */
 .veh-grid{
   display:grid;
@@ -354,7 +347,7 @@ body{
   cursor:pointer;
   display:flex;
   align-items:center;
-  justify-content:space-between;
+  justify-content:flex-start;
   gap:10px;
   font-weight:850;
 }
@@ -383,12 +376,7 @@ body{
   flex:0 0 auto;
 }
 
-.sugg-right{
-  font-size:10px;
-  letter-spacing:.10em;
-  font-weight:900;
-  color:rgba(231,238,252,.72);
-}
+.sugg-right{display:none}
 
 /* Ciudad seleccionada */
 .selected-city{margin-top:10px}
@@ -428,13 +416,6 @@ body{
   font-weight:900;
 }
 
-.sel-action{
-  font-size:11px;
-  font-weight:900;
-  color:var(--accent);
-  letter-spacing:.08em;
-}
-
 /* Status */
 .status-line{
   margin-top:12px;
@@ -464,6 +445,8 @@ body{
   overflow:hidden;
   display:flex;
   flex-direction:column;
+  flex:1 1 auto;
+  min-height:280px;
 }
 
 .obs-head{
@@ -485,13 +468,13 @@ body{
   color:rgba(231,238,252,.82);
   line-height:1.42;
   font-size:13px;
-  max-height:56vh;
-  min-height:220px;
   overflow:auto;
+  flex:1 1 auto;
+  min-height:260px;
 }
 
 #obsBodyText{
-  white-space:pre-wrap;
+  white-space:normal;
   word-break:break-word;
 }
 
@@ -509,14 +492,8 @@ body{
   margin-bottom:0;
 }
 
-#obsBodyText ul,
-#obsBodyText ol{
-  margin:0 0 8px 18px;
-  padding:0;
-}
-
-#obsBodyText li{
-  margin:0 0 4px 0;
+#obsBodyText br{
+  content:"";
 }
 
 .obs-meta{
@@ -550,47 +527,6 @@ body{
 .vig-dot.unknown{background:rgba(154,164,178,.45);border-color:rgba(154,164,178,.45)}
 
 .src-line{display:none}
-
-/* Opciones */
-.options .options-row{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-}
-
-.opt-toggle{
-  border-radius:14px;
-  padding:10px 12px;
-  border:1px solid rgba(255,255,255,.12);
-  background:rgba(255,255,255,.04);
-  color:var(--text);
-  font-weight:900;
-  cursor:pointer;
-}
-
-.opt-toggle:hover{background:rgba(255,255,255,.06)}
-
-.options-body{
-  margin-top:10px;
-  display:grid;
-  gap:10px;
-}
-
-/* Botones */
-.btn{
-  width:100%;
-  border-radius:14px;
-  padding:12px 10px;
-  border:1px solid var(--line);
-  background:rgba(34,243,200,.14);
-  color:var(--text);
-  font-weight:900;
-  cursor:pointer;
-}
-.btn:hover{background:rgba(34,243,200,.20)}
-.btn-ghost{background:transparent}
-.btn-ghost:hover{background:rgba(255,255,255,.06)}
 
 /* Toast */
 .toast{
@@ -657,6 +593,7 @@ body{
 
   .obs{
     order:3;
+    min-height:220px;
   }
 }
 
@@ -736,8 +673,7 @@ body{
   }
 
   .obs-body{
-    max-height:none;
-    min-height:160px;
+    min-height:180px;
     font-size:12px;
   }
 }
