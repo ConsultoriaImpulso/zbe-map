@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ZBE · Dashboard</title>
+  <link rel="stylesheet" href="./styles.css" />
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div class="brand-text">
+        <div class="brand-title">ZBE</div>
+        <div class="brand-sub">IMPULSO · MOBILITY INTELLIGENCE</div>
+      </div>
+    </div>
+
+    <div class="user">
+      <div class="user-text">
+        <div class="user-name">Admin User</div>
+        <div class="user-badge">PREMIUM ACCESS</div>
+      </div>
+      <div class="avatar"></div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="left">
+      <section class="card">
+        <div class="card-title">TIPO VEHÍCULO</div>
+        <div class="veh-grid" id="vehGrid"></div>
+
+        <div class="subrow" id="weightRow" style="display:none;">
+          <div class="sub-title">PESO</div>
+          <div class="segmented">
+            <button class="seg active" id="btnLight" type="button">LIGERO</button>
+            <button class="seg" id="btnHeavy" type="button">PESADO (&gt; 3.500)</button>
+          </div>
+        </div>
+
+        <div class="card-title" style="margin-top:14px;">DISTINTIVO AMBIENTAL</div>
+        <div class="badge-row" id="badgeRow"></div>
+
+        <div class="card-title" style="margin-top:14px;">CIUDAD</div>
+        <div class="search-wrap">
+          <input id="cityInput" class="search" placeholder="Busca una ciudad…" autocomplete="off" />
+          <div id="suggestions" class="suggestions" style="display:none;"></div>
+        </div>
+
+        <!-- Barra fija para saber qué ciudad está seleccionada y para alejar -->
+        <div class="selected-city" id="selectedCityBar" style="display:none;">
+          <div class="selected-pill">
+            <span class="sel-label">Seleccionada:</span>
+            <span class="sel-name" id="selectedCityName">—</span>
+            <button class="sel-clear" id="btnClearCity" type="button">Alejar ✕</button>
+          </div>
+        </div>
+
+        <div class="status-line">
+          <span>Acceso a la ZBE:</span>
+          <span id="selectedCityChip" class="chip gray">—</span>
+        </div>
+      </section>
+
+      <section class="card obs">
+        <div class="obs-head">
+          <span class="warn">⚠</span>
+          <span>OBSERVACIONES: <b id="obsCity">—</b></span>
+        </div>
+
+        <div class="obs-body">
+          <div id="obsBodyText">Selecciona una ciudad para ver detalles.</div>
+
+          <div class="obs-meta">
+            <div class="vig-line">
+              <span class="vig-dot unknown" id="vigDot"></span>
+              <span id="vigText">Vigencia ZBE: —</span>
+            </div>
+
+            <div class="src-line">
+              Fuente: <span id="sourceText">—</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card options">
+        <div class="options-row">
+          <button class="opt-toggle" id="btnOptions" type="button">Opciones</button>
+          <div class="hint" id="lastUpdated">Última carga: —</div>
+        </div>
+
+        <div class="options-body" id="optionsBody" style="display:none;">
+          <button class="btn" id="btnReload" type="button">Recargar CSV</button>
+          <button class="btn btn-ghost" id="btnReset" type="button">Reset (oculto)</button>
+          <div class="hint" id="csvHint"></div>
+        </div>
+      </section>
+
+      <div class="toast" id="toast" style="display:none;"></div>
+    </aside>
+
+    <section class="right">
+      <div id="map"></div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
