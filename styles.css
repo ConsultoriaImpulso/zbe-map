@@ -523,6 +523,7 @@ body{
   background:rgba(154,164,178,.45);
 }
 .vig-dot.ok{background:rgba(0,210,106,.90);border-color:rgba(0,210,106,.90)}
+.vig-dot.pending{background:rgba(255,138,0,.92);border-color:rgba(255,138,0,.92)}
 .vig-dot.no{background:rgba(255,77,77,.90);border-color:rgba(255,77,77,.90)}
 .vig-dot.unknown{background:rgba(154,164,178,.45);border-color:rgba(154,164,178,.45)}
 
