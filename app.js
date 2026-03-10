@@ -7,13 +7,6 @@ const COORDS_CANDIDATES = [
   "./MAPA_ZBE.CSV"
 ];
 
-const CITY_22 = [
-  "A Coruña","Alicante","Barcelona","Bilbao","Córdoba","Gijón","Granada",
-  "Las Palmas de Gran Canaria","Madrid","Madrid - Distrito Centro","Madrid - Plaza Elíptica",
-  "Málaga","Murcia","Palma (Mallorca)","Pamplona","San Sebastián","Sevilla",
-  "Valencia","Valladolid","Vitoria-Gasteiz","Zaragoza","Vigo"
-];
-
 // DOM
 const toast = document.getElementById("toast");
 const vehGrid = document.getElementById("vehGrid");
@@ -45,7 +38,6 @@ function showToast(msg, ms = 9000) {
   }, ms);
 }
 
-// Utils
 function canon(s) {
   return String(s || "")
     .trim()
@@ -161,11 +153,8 @@ function preserveFormattedText(raw) {
   if (looksLikeHtml) return text;
 
   text = escapeHtml(text);
-
-  // negritas tipo **texto**
   text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 
-  // dobles saltos -> párrafos
   const paragraphs = text
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
@@ -213,7 +202,6 @@ const BADGE_OPTIONS = [
   { label: "SIN DISTINTIVO", value: "SIN ETIQUETA", cls: "badge-sin", top: "", mode: "text" }
 ];
 
-// Map
 const DEFAULT_VIEW = { center: [40.4168, -3.7038], zoom: 6 };
 const map = L.map("map", { zoomControl: false }).setView(DEFAULT_VIEW.center, DEFAULT_VIEW.zoom);
 L.control.zoom({ position: "topright" }).addTo(map);
@@ -227,7 +215,6 @@ osm.addTo(map);
 
 pinsLayer.addTo(map);
 
-// Helpers
 function key(cCity, cBadge, cVeh) {
   return `${cCity}||${cBadge}||${cVeh}`;
 }
@@ -268,7 +255,7 @@ function setAccessChip(access) {
 }
 
 function cityDisplayName(cCanon) {
-  return cities.get(cCanon) || CITY_22.find(x => canon(x) === cCanon) || cCanon;
+  return cities.get(cCanon) || cCanon;
 }
 
 function syncObsHeader() {
@@ -292,35 +279,61 @@ function showSelectedCityBar() {
 function setVigencia(valueRaw) {
   if (!vigDot || !vigText) return;
 
-  const v = String(valueRaw || "").trim();
-  const c = canon(v);
+  const raw = String(valueRaw || "").trim();
+  const c = canon(raw);
 
-  if (!v) {
+  if (!raw) {
     vigDot.className = "vig-dot unknown";
     vigText.textContent = "Vigencia ZBE: —";
     return;
   }
 
-  const isNo = c.includes("no") || c.includes("false") || c === "0" || c.includes("inact") || c.includes("caduc") || c.includes("no vigente");
-  const isYes = c.includes("si") || c.includes("sí") || c.includes("true") || c === "1" || c.includes("vigent") || c.includes("activo") || c.includes("vigente");
+  const isPending =
+    c.includes("tramite") ||
+    c.includes("tramitacion") ||
+    c.includes("en tramite") ||
+    c.includes("en tramitacion");
 
-  if (isNo && !isYes) {
-    vigDot.className = "vig-dot no";
-    vigText.textContent = "Vigencia ZBE: NO VIGENTE";
+  const isNo =
+    c.includes("no vigente") ||
+    c.includes("no activa") ||
+    c.includes("no activo") ||
+    c.includes("caduc") ||
+    c === "0" ||
+    c === "false";
+
+  const isYes =
+    c === "vigente" ||
+    c.includes("vigente") ||
+    c.includes("en vigor") ||
+    c.includes("activo") ||
+    c.includes("activa") ||
+    c === "1" ||
+    c === "true";
+
+  if (isPending) {
+    vigDot.className = "vig-dot pending";
+    vigText.textContent = "Vigencia ZBE: EN TRÁMITE";
     return;
   }
 
-  if (isYes) {
+  if (isYes && !isNo) {
     vigDot.className = "vig-dot ok";
     vigText.textContent = "Vigencia ZBE: VIGENTE";
     return;
   }
 
-  vigDot.className = "vig-dot unknown";
-  vigText.textContent = "Vigencia ZBE: " + v.toUpperCase();
+  if (isNo) {
+    vigDot.className = "vig-dot no";
+    vigText.textContent = "Vigencia ZBE: NO VIGENTE";
+    return;
+  }
+
+  // fallback importante: si viene algo no vacío, mostrarlo, no raya
+  vigDot.className = "vig-dot pending";
+  vigText.textContent = "Vigencia ZBE: " + raw.toUpperCase();
 }
 
-// Geo helpers
 function featureCityCanon(feature) {
   const p = feature?.properties || {};
   const candidates = [p.city, p.CIUDAD, p.Ciudad, p.municipio, p.MUNICIPIO, p.nombre, p.NAME, p.name].filter(Boolean);
@@ -378,15 +391,11 @@ function rebuildCityBounds() {
     const b = layer.getBounds();
     if (!b || !b.isValid()) return;
 
-    if (cityBounds.has(cCity)) {
-      cityBounds.set(cCity, cityBounds.get(cCity).extend(b));
-    } else {
-      cityBounds.set(cCity, b);
-    }
+    if (cityBounds.has(cCity)) cityBounds.set(cCity, cityBounds.get(cCity).extend(b));
+    else cityBounds.set(cCity, b);
   });
 }
 
-// Zoom
 function flyToBoundsSlow(bounds) {
   try {
     map.flyToBounds(bounds, { padding: [60, 60], duration: 2.0 });
@@ -403,17 +412,12 @@ function flyToDefaultSlow() {
   map.flyTo(DEFAULT_VIEW.center, DEFAULT_VIEW.zoom, { duration: 2.0 });
 }
 
-// Pins
 function getCityLatLng(cCity) {
   if (cityBounds.has(cCity)) {
     const center = cityBounds.get(cCity).getCenter();
     return { lat: center.lat, lng: center.lng };
   }
-
-  if (cityCoords.has(cCity)) {
-    return cityCoords.get(cCity);
-  }
-
+  if (cityCoords.has(cCity)) return cityCoords.get(cCity);
   return null;
 }
 
@@ -460,16 +464,9 @@ function buildPins() {
   pinsLayer.clearLayers();
   pinMarkers = new Map();
 
-  const missing = [];
-
-  for (const name of CITY_22) {
-    const cCity = canon(name);
+  for (const [cCity] of cities.entries()) {
     const ll = getCityLatLng(cCity);
-
-    if (!ll) {
-      missing.push(name);
-      continue;
-    }
+    if (!ll) continue;
 
     const rec = getRec(cCity);
     const col = accessToColor(rec?.access || "");
@@ -488,13 +485,8 @@ function buildPins() {
     marker.addTo(pinsLayer);
     pinMarkers.set(cCity, marker);
   }
-
-  if (missing.length) {
-    showToast("⚠️ Sin posición (ni polígono ni coordenadas) para: " + missing.join(", "), 14000);
-  }
 }
 
-// Panel
 function updateObservationPanel(cCity) {
   syncObsHeader();
   showSelectedCityBar();
@@ -519,7 +511,6 @@ function clearObservationPanel() {
   if (selectedCityBar) selectedCityBar.style.display = "none";
 }
 
-// Select
 function selectCity(cCity, { fromMap = false } = {}) {
   if (state.cCity === cCity) {
     clearSelectionAndZoomOut();
@@ -527,14 +518,12 @@ function selectCity(cCity, { fromMap = false } = {}) {
   }
 
   state.cCity = cCity;
-
   updateObservationPanel(cCity);
   refreshZonesStyle();
   refreshPins();
 
-  if (cityBounds.has(cCity)) {
-    flyToBoundsSlow(cityBounds.get(cCity));
-  } else if (cityCoords.has(cCity)) {
+  if (cityBounds.has(cCity)) flyToBoundsSlow(cityBounds.get(cCity));
+  else if (cityCoords.has(cCity)) {
     const c = cityCoords.get(cCity);
     flyToPointSlow(c.lat, c.lng);
   } else {
@@ -560,7 +549,6 @@ function clearSelectionAndZoomOut() {
   flyToDefaultSlow();
 }
 
-// Filters
 function applyVehicleFromUI() {
   const mapped = VEH_MAP[state.baseVeh]?.[state.weight] || "turismo";
   state.cVeh = canon(mapped);
@@ -598,16 +586,10 @@ function onFiltersChangedKeepCity() {
   refreshZonesStyle();
   refreshPins();
 
-  if (suggestions.style.display !== "none") {
-    renderSuggestions(cityInput.value || "");
-  }
-
-  if (state.cCity) {
-    updateObservationPanel(state.cCity);
-  }
+  if (suggestions.style.display !== "none") renderSuggestions(cityInput.value || "");
+  if (state.cCity) updateObservationPanel(state.cCity);
 }
 
-// UI builders
 function svgIcon(name) {
   const common = `fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"`;
 
@@ -649,7 +631,7 @@ function buildVehicleButtons() {
 
     b.addEventListener("click", () => {
       state.baseVeh = it.key;
-      const needsWeight = ["FURGONETA","CAMION","AUTOBUS"].includes(state.baseVeh);
+      const needsWeight = ["FURGONETA", "CAMION", "AUTOBUS"].includes(state.baseVeh);
       weightRow.style.display = needsWeight ? "block" : "none";
       if (!needsWeight) state.weight = "LIGHT";
       setWeightButtons();
@@ -661,7 +643,7 @@ function buildVehicleButtons() {
   }
 
   updateActiveVeh();
-  weightRow.style.display = ["FURGONETA","CAMION","AUTOBUS"].includes(state.baseVeh) ? "block" : "none";
+  weightRow.style.display = ["FURGONETA", "CAMION", "AUTOBUS"].includes(state.baseVeh) ? "block" : "none";
 }
 
 function updateActiveVeh() {
@@ -718,12 +700,11 @@ function updateActiveBadges() {
   });
 }
 
-// Suggestions
 function renderSuggestions(query) {
   const q = canon(query || "");
   suggestions.innerHTML = "";
 
-  const allCanon = CITY_22.map(canon);
+  const allCanon = Array.from(cities.keys());
   const filtered = allCanon.filter(c => !q || canon(cityDisplayName(c)).includes(q));
 
   for (const cCity of filtered) {
@@ -764,7 +745,6 @@ function closeSuggestionsSoon() {
   }, 120);
 }
 
-// Loaders
 async function loadGeojson() {
   const r = await fetch(GEOJSON_FILE, { cache: "no-store" });
   if (!r.ok) throw new Error("No pude cargar GeoJSON");
@@ -814,10 +794,10 @@ async function loadCoordsOptional() {
       if (rows.length < 2) return true;
 
       const header = rows[0];
-      const iCity = findCol(header, ["city","ciudad","municipio"]);
-      const iLat = findCol(header, ["lat","latitud","latitude","y"]);
-      const iLng = findCol(header, ["lng","longitud","lon","longitude","x"]);
-      const iCoord = findCol(header, ["coordenadas","coordenada","coord"]);
+      const iCity = findCol(header, ["city", "ciudad", "municipio"]);
+      const iLat = findCol(header, ["lat", "latitud", "latitude", "y"]);
+      const iLng = findCol(header, ["lng", "longitud", "lon", "longitude", "x"]);
+      const iCoord = findCol(header, ["coordenadas", "coordenada", "coord"]);
 
       if (iCity < 0) return true;
 
@@ -866,15 +846,15 @@ async function loadAccessCsv() {
 
   const header = rows[0];
 
-  const iCity = findCol(header, ["city","ciudad","municipio"]);
-  const iBadge = findCol(header, ["badge","distintivo","distintivo ambiental","etiqueta"]);
-  const iVeh = findCol(header, ["vehicle","tipo veh","vehiculo","vehículo"]);
-  const iAccess = findCol(header, ["access","acceso"]);
-  const iObs = findCol(header, ["observaciones","observacion","observación","nota","notas","obs"]);
-  const iVig = findCol(header, ["estado zbe","vigencia","vigente","en vigor","activo","estado_zbe"]);
-  const iLat = findCol(header, ["lat","latitud","latitude","y"]);
-  const iLng = findCol(header, ["lng","longitud","lon","longitude","x"]);
-  const iCoord = findCol(header, ["coordenadas","coordenada","coord"]);
+  const iCity = findCol(header, ["city", "ciudad", "municipio"]);
+  const iBadge = findCol(header, ["badge", "distintivo", "distintivo ambiental", "etiqueta"]);
+  const iVeh = findCol(header, ["vehicle", "tipo veh", "vehiculo", "vehículo"]);
+  const iAccess = findCol(header, ["access", "acceso"]);
+  const iObs = findCol(header, ["observaciones", "observacion", "observación", "nota", "notas", "obs"]);
+  const iVig = findCol(header, ["estado zbe", "vigencia", "vigente", "en vigor", "activo", "estado_zbe"]);
+  const iLat = findCol(header, ["lat", "latitud", "latitude", "y"]);
+  const iLng = findCol(header, ["lng", "longitud", "lon", "longitude", "x"]);
+  const iCoord = findCol(header, ["coordenadas", "coordenada", "coord"]);
 
   if (iCity < 0 || iBadge < 0 || iVeh < 0 || iAccess < 0) {
     throw new Error("No encuentro columnas mínimas en access.csv: CIUDAD, DISTINTIVO, TIPO VEHÍCULO, ACCESO");
@@ -934,7 +914,6 @@ async function loadAccessCsv() {
   }
 }
 
-// Events
 btnLight.addEventListener("click", () => {
   state.weight = "LIGHT";
   setWeightButtons();
@@ -957,7 +936,6 @@ cityInput.addEventListener("keydown", (e) => {
 
 btnSelectedCity.addEventListener("click", () => clearSelectionAndZoomOut());
 
-// Init
 async function init() {
   await loadAccessCsv();
   await loadGeojson();
