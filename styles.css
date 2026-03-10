@@ -241,21 +241,22 @@ body{
   color:#122033;
 }
 .badge-b .badge-top{color:#5a4700}
+
 .badge-sin{
   width:auto;
-  min-width:92px;
+  min-width:78px;
   border-radius:14px;
 }
 .badge-sin .badge-inner{
   border-radius:14px;
   background:#d6dbe3;
   color:#415063;
-  padding:0 10px;
+  padding:0 8px;
 }
 .badge-sin .badge-main{
-  font-size:10px;
+  font-size:9px;
   font-weight:900;
-  letter-spacing:.04em;
+  letter-spacing:.03em;
 }
 .badge-sin .badge-top{display:none}
 .badge-sin .badge-ring{display:none}
@@ -379,7 +380,12 @@ body{
 .chip.gray{color:#9aa4b2;border-color:rgba(154,164,178,.35)}
 
 /* Observaciones */
-.obs{padding:0;overflow:hidden}
+.obs{
+  padding:0;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
 .obs-head{
   display:flex;
   align-items:center;
@@ -389,14 +395,32 @@ body{
   letter-spacing:.12em;
   font-weight:900;
   font-size:12px;
+  flex:0 0 auto;
 }
 .warn{color:#ff6b6b}
 .obs-body{
   padding:14px;
-  color:rgba(231,238,252,.78);
-  line-height:1.45;
-  max-height:44vh;
+  color:rgba(231,238,252,.82);
+  line-height:1.42;
+  font-size:13px;              /* un punto más pequeño */
+  max-height:56vh;             /* más alta para ver más */
+  min-height:220px;
   overflow:auto;
+}
+#obsBodyText{
+  white-space:pre-wrap;        /* respeta saltos y espacios */
+  word-break:break-word;
+}
+#obsBodyText b,
+#obsBodyText strong{
+  font-weight:800;
+  color:#ffffff;
+}
+#obsBodyText p{
+  margin:0 0 8px 0;
+}
+#obsBodyText p:last-child{
+  margin-bottom:0;
 }
 .obs-meta{
   margin-top:12px;
@@ -425,7 +449,8 @@ body{
 .vig-dot.ok{background:rgba(0,210,106,.90);border-color:rgba(0,210,106,.90)}
 .vig-dot.no{background:rgba(255,77,77,.90);border-color:rgba(255,77,77,.90)}
 .vig-dot.unknown{background:rgba(154,164,178,.45);border-color:rgba(154,164,178,.45)}
-.src-line{font-weight:850;letter-spacing:.02em;word-break:break-all}
+
+.src-line{display:none}
 
 /* Opciones */
 .options .options-row{
@@ -477,7 +502,7 @@ body{
 /* Pines */
 .pin-icon{background:transparent !important;border:none !important}
 
-/* Scrollbars oscuros */
+/* Scrollbars */
 .left, .obs-body, .suggestions{
   scrollbar-color: rgba(34,243,200,.35) rgba(255,255,255,.06);
   scrollbar-width: thin;
@@ -499,10 +524,7 @@ body{
   border:2px solid rgba(255,255,255,.06);
 }
 
-/* =========================
-   RESPONSIVE
-   móvil: filtros -> mapa -> observaciones
-   ========================= */
+/* Responsive */
 @media (max-width: 900px){
   .layout{
     height:auto;
@@ -514,6 +536,7 @@ body{
     border-right:0;
     border-bottom:1px solid var(--line);
     overflow:visible;
+    order:1;
   }
 
   .right{
@@ -574,26 +597,21 @@ body{
   .veh-btn .veh-icon{width:16px;height:16px}
   .veh-btn .veh-label{font-size:9px}
 
-  .badge-row{
-    gap:5px;
-  }
-
+  .badge-row{gap:5px}
   .badge-btn{
     width:46px;
     height:46px;
   }
-
   .badge-main{font-size:11px}
   .badge-top{font-size:5px; top:5px}
 
   .badge-sin{
-    min-width:82px;
+    min-width:72px;
     height:46px;
     border-radius:12px;
   }
-
   .badge-sin .badge-inner{border-radius:12px}
-  .badge-sin .badge-main{font-size:9px}
+  .badge-sin .badge-main{font-size:8px}
 
   .selected-pill{
     flex-wrap:wrap;
@@ -612,5 +630,7 @@ body{
 
   .obs-body{
     max-height:none;
+    min-height:160px;
+    font-size:12px;
   }
 }
