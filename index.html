@@ -1013,7 +1013,6 @@ input{font-family:inherit;outline:none}
 .rp-hist-det{font-size:.82rem;color:var(--mu);line-height:1.5;margin-top:3px}
 .rp-hist-src{font-size:.72rem;color:var(--teal);text-decoration:none;display:inline-block;margin-top:3px}
 .rp-hist-src:hover{text-decoration:underline}
-.rp-hist-src.prensa{color:var(--mu)}
 .rp-hist-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:transparent;border:0;color:var(--tx);padding:10px 14px;cursor:pointer;font-family:'Karla',sans-serif;font-weight:700;font-size:.8rem;letter-spacing:.02em}
 .rp-hist-toggle:hover{background:var(--bg3)}
 .rp-hist-n{font-size:.66rem;color:var(--tx-dark);background:var(--teal);border-radius:9px;padding:1px 7px;margin-left:8px}
@@ -2725,7 +2724,7 @@ function abrirZona(z) {
         '<span class="rp-hist-tipo">' + esc(TIPOS[e.tipo] || e.tipo || '') + '</span>' + firme + '</div>' +
         '<div class="rp-hist-tit">' + esc(e.titulo) + '</div>' +
         (e.detalle ? '<div class="rp-hist-det">' + esc(e.detalle) + '</div>' : '') +
-        (e.fuente_url ? '<a class="rp-hist-src' + (e.fuente_tipo === 'prensa' ? ' prensa' : '') + '" href="' + esc(e.fuente_url) + '" target="_blank" rel="noopener">' + (e.fuente_tipo === 'prensa' ? 'Prensa ↗' : 'Fuente oficial ↗') + '</a>' : '') + '</li>';
+        (e.fuente_url ? '<a class="rp-hist-src" href="' + esc(e.fuente_url) + '" target="_blank" rel="noopener">Fuente oficial ↗</a>' : '') + '</li>';
     }).join('');
     footerHtml = '<div class="rp-hist" id="rp-hist"><div class="rp-hist-panel"><ul class="rp-hist-list">' + items + '</ul></div>' +
       '<button type="button" class="rp-hist-toggle" aria-expanded="false"><span>Historial de la ordenanza<span class="rp-hist-n">' + _hist.length + '</span></span><span class="rp-hist-chev">▴</span></button></div>' + footerHtml;
