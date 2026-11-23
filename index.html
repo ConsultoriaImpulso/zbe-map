@@ -989,7 +989,7 @@ input{font-family:inherit;outline:none}
   font-family:'Karla',sans-serif;font-weight:700;letter-spacing:.02em;text-decoration:none;
   transition:transform .12s,background .15s;
 }
-.rp-sub{margin-bottom:14px}.rp-sub-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0 4px;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,.08)}.rp-sub-name{font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--tx)}.rp-sub-ef{font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:4px}.rp-sub-ef.libre{background:rgba(16,185,129,.2);color:#34d399}.rp-sub-ef.cond{background:rgba(245,158,11,.2);color:#fbbf24}.rp-sub-ef.proh{background:rgba(239,68,68,.2);color:#f87171}
+.rp-sub{margin-bottom:14px}.rp-sub-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0 4px;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,.08)}.rp-sub-name{font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--tx)}.rp-sub-ef{font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:4px}.rp-sub-ef.libre{background:rgba(16,185,129,.2);color:#34d399}.rp-sub-ef.cond{background:rgba(245,158,11,.2);color:#fbbf24}.rp-sub-ef.proh{background:rgba(239,68,68,.2);color:#f87171}.rp-sub-ef.na{background:rgba(141,164,164,.22);color:#b7c6c6}.rp-sub-nota{font-size:.72rem;line-height:1.4;color:var(--tx2,#9fb3b3);margin:2px 0 6px}
 .rp-link:hover{transform:translateY(-1px);background:var(--teal2)}
 .rp-hist{margin-bottom:10px;border:1px solid var(--br);border-radius:4px;background:var(--bg);overflow:hidden}
 .rp-hist-panel{max-height:0;overflow-y:auto;transition:max-height .25s ease}
@@ -2525,6 +2525,7 @@ function efectoZona(zonaId, subzona) {
     if (_z && Array.isArray(_z.subzonas) && _z.subzonas.length) {
       let peor = null;
       for (const sz of _z.subzonas) {
+        if (sz.activa === false) continue;          // subzona anulada/no activa: no cuenta para el color global
         const e = efectoZona(zonaId, sz.id);
         if (e && (!peor || _RANGO_EF[e] > _RANGO_EF[peor])) peor = e;
       }
@@ -2588,13 +2589,14 @@ function refreshMap() {
         },
         style: function(f){
           var sz = f && f.properties && f.properties.subzona;
-          var c = (sz && !_noAct) ? colorEfecto(efectoZona(z.id, sz)) : color;
+          var _szi = (sz && Array.isArray(z.subzonas)) ? z.subzonas.find(function(x){return x.id===sz;}) : null;
+          var c = (sz && !_noAct) ? ((_szi && _szi.activa === false) ? COLOR_NO_ACTIVA : colorEfecto(efectoZona(z.id, sz))) : color;
           return {color: c, fillColor: c, fillOpacity: .35, weight: 2.5};
         },
         onEachFeature: function(f, l){
           var sz = f && f.properties && f.properties.subzona;
           var info = sz && Array.isArray(z.subzonas) ? z.subzonas.find(function(x){return x.id===sz;}) : null;
-          l.bindTooltip(z.nombre_completo + (info ? ' · ' + info.nombre : ''), {sticky: true});
+          l.bindTooltip(z.nombre_completo + (info ? ' · ' + info.nombre + (info.activa === false ? ' (no activa)' : '') : ''), {sticky: true});
         }
       });
       layer.on('click', () => abrirZona(z));
@@ -2728,9 +2730,11 @@ function abrirZona(z) {
   if (Array.isArray(z.subzonas) && z.subzonas.length) {
     for (const sz of z.subzonas) {
       const rs = reglasMatch(z.id, sz.id).sort((a,b) => ord[a.efecto] - ord[b.efecto]);
-      const efS = efectoZona(z.id, sz.id);
-      const clsS = efS === 'LIBRE' ? 'libre' : (efS === 'PROHIBIDO' ? 'proh' : 'cond');
-      bodyHtml += `<div class="rp-sub"><div class="rp-sub-head"><span class="rp-sub-name">${sz.nombre}</span><span class="rp-sub-ef ${clsS}">${efS || 'SIN DATOS'}</span></div>` + _cuerpoReglas(rs) + `</div>`;
+      const _inact = sz.activa === false;
+      const efS = _inact ? 'NO ACTIVA' : efectoZona(z.id, sz.id);
+      const clsS = _inact ? 'na' : (efS === 'LIBRE' ? 'libre' : (efS === 'PROHIBIDO' ? 'proh' : 'cond'));
+      const _nota = sz.nota ? `<div class="rp-sub-nota">${sz.nota}</div>` : '';
+      bodyHtml += `<div class="rp-sub"><div class="rp-sub-head"><span class="rp-sub-name">${sz.nombre}</span><span class="rp-sub-ef ${clsS}">${efS || 'SIN DATOS'}</span></div>` + _nota + _cuerpoReglas(rs) + `</div>`;
     }
   } else {
     bodyHtml = _cuerpoReglas(reglas);
