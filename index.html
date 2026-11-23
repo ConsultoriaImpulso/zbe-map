@@ -2752,7 +2752,7 @@ function abrirZona(z) {
   const _hist = Array.isArray(z.historial) ? z.historial.slice() : [];
   if (_hist.length) {
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const TIPOS = {aprobacion:'Aprobación', publicacion:'Publicación', vigor:'Entrada en vigor', modificacion:'Modificación', normativa:'Normativa estatal', sentencia:'Sentencia', cautelar:'Medida cautelar', aviso:'Aviso'};
+    const TIPOS = {aprobacion:'Aprobación', publicacion:'Publicación', vigor:'Entrada en vigor', modificacion:'Modificación', normativa:'Normativa estatal', sentencia:'Sentencia', cautelar:'Medida cautelar', aviso:'Aviso', tramite:'Trámite'};
     const fmt = f => { const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(f || ''); return m ? ((m[3] ? m[3] + '/' : '') + m[2] + '/' + m[1]) : esc(f); };
     _hist.sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
     const items = _hist.map(e => {
