@@ -2775,19 +2775,21 @@ function buildSidebarData() {
   const porRegion = {};
 
   for (const ciudad of DATASET.ciudades) {
-    const zonaId = ciudad.zonas && ciudad.zonas[0];
-    const zona = zonaId ? DATASET.zonas.find(z => z.id === zonaId) : null;
-    const ef = zona ? efectoZona(zona.id) : null;
-    const efKey = ef || 'NA';
-    if (!sbState.filtros.has(efKey)) continue;
-    if (q && !normaliza(ciudad.nombre).includes(q)) continue;
-    const region = ciudad.region || 'Otras';
-    if (!porRegion[region]) porRegion[region] = [];
-    porRegion[region].push({ciudad, zona, efecto: ef});
+    const zonaIds = (ciudad.zonas && ciudad.zonas.length) ? ciudad.zonas : [null];
+    zonaIds.forEach((zonaId, orden) => {
+      const zona = zonaId ? DATASET.zonas.find(z => z.id === zonaId) : null;
+      const ef = zona ? efectoZona(zona.id) : null;
+      const efKey = ef || 'NA';
+      if (!sbState.filtros.has(efKey)) return;
+      if (q && !normaliza(ciudad.nombre).includes(q)) return;
+      const region = ciudad.region || 'Otras';
+      if (!porRegion[region]) porRegion[region] = [];
+      porRegion[region].push({ciudad, zona, efecto: ef, orden});
+    });
   }
 
   for (const r of Object.keys(porRegion)) {
-    porRegion[r].sort((a, b) => a.ciudad.nombre.localeCompare(b.ciudad.nombre, 'es'));
+    porRegion[r].sort((a, b) => a.ciudad.nombre.localeCompare(b.ciudad.nombre, 'es') || a.orden - b.orden);
   }
   return Object.keys(porRegion)
     .sort((a, b) => a.localeCompare(b, 'es'))
@@ -2796,7 +2798,7 @@ function buildSidebarData() {
 
 function renderSidebar() {
   const data = buildSidebarData();
-  const totalCiudades = data.reduce((acc, r) => acc + r.items.length, 0);
+  const totalCiudades = new Set(data.flatMap(r => r.items.map(it => it.ciudad.id))).size;
   document.getElementById('sb-title-count').textContent = totalCiudades > 0 ? `${totalCiudades}` : '';
   const tabCount = document.getElementById('map-tab-count');
   if (tabCount) tabCount.textContent = totalCiudades;
