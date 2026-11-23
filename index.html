@@ -2541,6 +2541,9 @@ function efectoZona(zonaId, subzona) {
   return 'PROHIBIDO';
 }
 
+/* Zonas no activas (anuladas o sin ordenanza en vigor): siempre en gris en el mapa y el listado */
+function zonaNoActiva(z) { return /^anulada|^no en vigor/i.test(((z && z.vigencia) || '').trim()); }
+const COLOR_NO_ACTIVA = '#8da4a4';
 function colorEfecto(e) {
   return {LIBRE:'#10b981', CONDICIONADO:'#f59e0b', PROHIBIDO:'#ef4444'}[e] || '#8da4a4';
 }
@@ -2570,7 +2573,8 @@ function refreshMap() {
     const _efKey = e || 'NA';
     let _filtros = null; try { _filtros = sbState.filtros; } catch(_e) {}
     if (_filtros && !_filtros.has(_efKey)) continue;
-    const color = colorEfecto(e);
+    const _noAct = zonaNoActiva(z);
+    const color = _noAct ? COLOR_NO_ACTIVA : colorEfecto(e);
 
     let layer;
     const gj = geojsonCache[z.id];
@@ -2584,7 +2588,7 @@ function refreshMap() {
         },
         style: function(f){
           var sz = f && f.properties && f.properties.subzona;
-          var c = sz ? colorEfecto(efectoZona(z.id, sz)) : color;
+          var c = (sz && !_noAct) ? colorEfecto(efectoZona(z.id, sz)) : color;
           return {color: c, fillColor: c, fillOpacity: .35, weight: 2.5};
         },
         onEachFeature: function(f, l){
@@ -2856,7 +2860,8 @@ function renderSidebar() {
   const html = data.map(({region, items}) => {
     const open = sbState.regionesAbiertas.has(region);
     const itemsHtml = items.map(({ciudad, zona, efecto}) => {
-      const cls = efecto === 'LIBRE' ? 'libre'
+      const cls = zonaNoActiva(zona) ? 'na'
+                : efecto === 'LIBRE' ? 'libre'
                 : efecto === 'CONDICIONADO' ? 'cond'
                 : efecto === 'PROHIBIDO' ? 'proh'
                 : 'na';
