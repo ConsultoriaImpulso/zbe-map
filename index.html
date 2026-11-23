@@ -1001,6 +1001,7 @@ input{font-family:inherit;outline:none}
 .rp-hist-item::before{content:'';position:absolute;left:-5px;top:3px;width:9px;height:9px;border-radius:50%;background:var(--teal)}
 .rp-hist-item.t-sentencia::before,.rp-hist-item.t-cautelar::before{background:var(--amb)}
 .rp-hist-item.t-aviso::before{background:var(--mu)}
+.rp-hist-item.t-normativa::before{background:#5b9eff}
 .rp-hist-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-family:'Karla',sans-serif}
 .rp-hist-date{font-size:.72rem;color:var(--mu);font-weight:700;letter-spacing:.04em}
 .rp-hist-tipo{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);border:1px solid var(--br);border-radius:3px;padding:1px 6px}
@@ -2709,7 +2710,7 @@ function abrirZona(z) {
   const _hist = Array.isArray(z.historial) ? z.historial.slice() : [];
   if (_hist.length) {
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const TIPOS = {aprobacion:'Aprobación', publicacion:'Publicación', vigor:'Entrada en vigor', modificacion:'Modificación', sentencia:'Sentencia', cautelar:'Medida cautelar', aviso:'Aviso'};
+    const TIPOS = {aprobacion:'Aprobación', publicacion:'Publicación', vigor:'Entrada en vigor', modificacion:'Modificación', normativa:'Normativa estatal', sentencia:'Sentencia', cautelar:'Medida cautelar', aviso:'Aviso'};
     const fmt = f => { const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(f || ''); return m ? ((m[3] ? m[3] + '/' : '') + m[2] + '/' + m[1]) : esc(f); };
     _hist.sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
     const items = _hist.map(e => {
