@@ -990,6 +990,33 @@ input{font-family:inherit;outline:none}
   transition:transform .12s,background .15s;
 }
 .rp-link:hover{transform:translateY(-1px);background:var(--teal2)}
+.rp-hist{margin-bottom:10px;border:1px solid var(--br);border-radius:4px;background:var(--bg);overflow:hidden}
+.rp-hist-panel{max-height:0;overflow-y:auto;transition:max-height .25s ease}
+.rp-hist.open .rp-hist-panel{max-height:42vh;border-bottom:1px solid var(--br)}
+.rp-hist-panel::-webkit-scrollbar{width:5px}
+.rp-hist-panel::-webkit-scrollbar-thumb{background:var(--br2);border-radius:3px}
+.rp-hist-list{list-style:none;margin:0;padding:12px 14px 4px 14px}
+.rp-hist-item{position:relative;padding:0 0 14px 18px;border-left:1px solid var(--br2,#2a6a6a);margin-left:4px}
+.rp-hist-item:last-child{border-left-color:transparent}
+.rp-hist-item::before{content:'';position:absolute;left:-5px;top:3px;width:9px;height:9px;border-radius:50%;background:var(--teal)}
+.rp-hist-item.t-sentencia::before,.rp-hist-item.t-cautelar::before{background:var(--amb)}
+.rp-hist-item.t-aviso::before{background:var(--mu)}
+.rp-hist-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-family:'Karla',sans-serif}
+.rp-hist-date{font-size:.72rem;color:var(--mu);font-weight:700;letter-spacing:.04em}
+.rp-hist-tipo{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);border:1px solid var(--br);border-radius:3px;padding:1px 6px}
+.rp-hist-firme{font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;border-radius:3px;padding:1px 6px}
+.rp-hist-firme.si{background:var(--grn);color:var(--tx-dark)}
+.rp-hist-firme.no{background:var(--amb);color:var(--tx-dark)}
+.rp-hist-firme.prov{background:var(--br2,#2a6a6a);color:var(--tx)}
+.rp-hist-tit{font-size:.9rem;color:var(--tx);font-weight:600;line-height:1.35;margin-top:4px}
+.rp-hist-det{font-size:.82rem;color:var(--mu);line-height:1.5;margin-top:3px}
+.rp-hist-src{font-size:.72rem;color:var(--teal);text-decoration:none;display:inline-block;margin-top:3px}
+.rp-hist-src:hover{text-decoration:underline}
+.rp-hist-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:transparent;border:0;color:var(--tx);padding:10px 14px;cursor:pointer;font-family:'Karla',sans-serif;font-weight:700;font-size:.8rem;letter-spacing:.02em}
+.rp-hist-toggle:hover{background:var(--bg3)}
+.rp-hist-n{font-size:.66rem;color:var(--tx-dark);background:var(--teal);border-radius:9px;padding:1px 7px;margin-left:8px}
+.rp-hist-chev{transition:transform .2s;color:var(--teal)}
+.rp-hist.open .rp-hist-chev{transform:rotate(180deg)}
 
 /* Leyenda */
 .map-legend{
@@ -2678,7 +2705,36 @@ function abrirZona(z) {
   } else if (z.enlace_texto) {
     footerHtml = `<div class="rp-link" style="cursor:default"><span>${z.enlace_texto}</span></div>`;
   }
+  /* Historial de la ordenanza: desplegable que se abre hacia arriba, encima del botón */
+  const _hist = Array.isArray(z.historial) ? z.historial.slice() : [];
+  if (_hist.length) {
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const TIPOS = {aprobacion:'Aprobación', publicacion:'Publicación', vigor:'Entrada en vigor', modificacion:'Modificación', sentencia:'Sentencia', cautelar:'Medida cautelar', aviso:'Aviso'};
+    const fmt = f => { const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(f || ''); return m ? ((m[3] ? m[3] + '/' : '') + m[2] + '/' + m[1]) : esc(f); };
+    _hist.sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
+    const items = _hist.map(e => {
+      let firme = '';
+      if (e.tipo === 'sentencia' || e.tipo === 'cautelar') {
+        if (e.firme === true) firme = '<span class="rp-hist-firme si">Firme</span>';
+        else if (e.firme === false) firme = '<span class="rp-hist-firme no">No firme</span>';
+        else firme = '<span class="rp-hist-firme prov">Provisional</span>';
+      }
+      return '<li class="rp-hist-item t-' + esc(e.tipo) + '"><div class="rp-hist-top"><span class="rp-hist-date">' + fmt(e.fecha) + '</span>' +
+        '<span class="rp-hist-tipo">' + esc(TIPOS[e.tipo] || e.tipo || '') + '</span>' + firme + '</div>' +
+        '<div class="rp-hist-tit">' + esc(e.titulo) + '</div>' +
+        (e.detalle ? '<div class="rp-hist-det">' + esc(e.detalle) + '</div>' : '') +
+        (e.fuente_url ? '<a class="rp-hist-src" href="' + esc(e.fuente_url) + '" target="_blank" rel="noopener">Fuente ↗</a>' : '') + '</li>';
+    }).join('');
+    footerHtml = '<div class="rp-hist" id="rp-hist"><div class="rp-hist-panel"><ul class="rp-hist-list">' + items + '</ul></div>' +
+      '<button type="button" class="rp-hist-toggle" aria-expanded="false"><span>Historial de la ordenanza<span class="rp-hist-n">' + _hist.length + '</span></span><span class="rp-hist-chev">▴</span></button></div>' + footerHtml;
+  }
   document.getElementById('rp-footer').innerHTML = footerHtml;
+  const _hb = document.querySelector('#rp-hist .rp-hist-toggle');
+  if (_hb) _hb.addEventListener('click', () => {
+    const box = document.getElementById('rp-hist');
+    const open = box.classList.toggle('open');
+    _hb.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
 
   document.getElementById('sidebar').classList.add('detail-mode');
   document.querySelectorAll('.sb-city').forEach(el => el.classList.remove('active'));
